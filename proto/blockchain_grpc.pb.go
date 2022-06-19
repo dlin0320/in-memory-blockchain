@@ -18,208 +18,158 @@ import (
 // Requires gRPC-Go v1.32.0 or later.
 const _ = grpc.SupportPackageIsVersion7
 
-// TransactionClient is the client API for Transaction service.
+// BlockchainClient is the client API for Blockchain service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
-type TransactionClient interface {
-	CreateTx(ctx context.Context, in *TxPayload, opts ...grpc.CallOption) (*Tx, error)
-	GetTx(ctx context.Context, in *TxParams, opts ...grpc.CallOption) (*TxList, error)
+type BlockchainClient interface {
+	CreateTransaction(ctx context.Context, in *TxPayload, opts ...grpc.CallOption) (*Tx, error)
+	GetTransactions(ctx context.Context, in *QueryParams, opts ...grpc.CallOption) (*TxList, error)
+	GetBlock(ctx context.Context, in *QueryParams, opts ...grpc.CallOption) (*BlkList, error)
 }
 
-type transactionClient struct {
+type blockchainClient struct {
 	cc grpc.ClientConnInterface
 }
 
-func NewTransactionClient(cc grpc.ClientConnInterface) TransactionClient {
-	return &transactionClient{cc}
+func NewBlockchainClient(cc grpc.ClientConnInterface) BlockchainClient {
+	return &blockchainClient{cc}
 }
 
-func (c *transactionClient) CreateTx(ctx context.Context, in *TxPayload, opts ...grpc.CallOption) (*Tx, error) {
+func (c *blockchainClient) CreateTransaction(ctx context.Context, in *TxPayload, opts ...grpc.CallOption) (*Tx, error) {
 	out := new(Tx)
-	err := c.cc.Invoke(ctx, "/proto.Transaction/CreateTx", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/proto.Blockchain/CreateTransaction", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *transactionClient) GetTx(ctx context.Context, in *TxParams, opts ...grpc.CallOption) (*TxList, error) {
+func (c *blockchainClient) GetTransactions(ctx context.Context, in *QueryParams, opts ...grpc.CallOption) (*TxList, error) {
 	out := new(TxList)
-	err := c.cc.Invoke(ctx, "/proto.Transaction/GetTx", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/proto.Blockchain/GetTransactions", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-// TransactionServer is the server API for Transaction service.
-// All implementations must embed UnimplementedTransactionServer
+func (c *blockchainClient) GetBlock(ctx context.Context, in *QueryParams, opts ...grpc.CallOption) (*BlkList, error) {
+	out := new(BlkList)
+	err := c.cc.Invoke(ctx, "/proto.Blockchain/GetBlock", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// BlockchainServer is the server API for Blockchain service.
+// All implementations must embed UnimplementedBlockchainServer
 // for forward compatibility
-type TransactionServer interface {
-	CreateTx(context.Context, *TxPayload) (*Tx, error)
-	GetTx(context.Context, *TxParams) (*TxList, error)
-	mustEmbedUnimplementedTransactionServer()
+type BlockchainServer interface {
+	CreateTransaction(context.Context, *TxPayload) (*Tx, error)
+	GetTransactions(context.Context, *QueryParams) (*TxList, error)
+	GetBlock(context.Context, *QueryParams) (*BlkList, error)
+	mustEmbedUnimplementedBlockchainServer()
 }
 
-// UnimplementedTransactionServer must be embedded to have forward compatible implementations.
-type UnimplementedTransactionServer struct {
+// UnimplementedBlockchainServer must be embedded to have forward compatible implementations.
+type UnimplementedBlockchainServer struct {
 }
 
-func (UnimplementedTransactionServer) CreateTx(context.Context, *TxPayload) (*Tx, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method CreateTx not implemented")
+func (UnimplementedBlockchainServer) CreateTransaction(context.Context, *TxPayload) (*Tx, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CreateTransaction not implemented")
 }
-func (UnimplementedTransactionServer) GetTx(context.Context, *TxParams) (*TxList, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetTx not implemented")
+func (UnimplementedBlockchainServer) GetTransactions(context.Context, *QueryParams) (*TxList, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetTransactions not implemented")
 }
-func (UnimplementedTransactionServer) mustEmbedUnimplementedTransactionServer() {}
+func (UnimplementedBlockchainServer) GetBlock(context.Context, *QueryParams) (*BlkList, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetBlock not implemented")
+}
+func (UnimplementedBlockchainServer) mustEmbedUnimplementedBlockchainServer() {}
 
-// UnsafeTransactionServer may be embedded to opt out of forward compatibility for this service.
-// Use of this interface is not recommended, as added methods to TransactionServer will
+// UnsafeBlockchainServer may be embedded to opt out of forward compatibility for this service.
+// Use of this interface is not recommended, as added methods to BlockchainServer will
 // result in compilation errors.
-type UnsafeTransactionServer interface {
-	mustEmbedUnimplementedTransactionServer()
+type UnsafeBlockchainServer interface {
+	mustEmbedUnimplementedBlockchainServer()
 }
 
-func RegisterTransactionServer(s grpc.ServiceRegistrar, srv TransactionServer) {
-	s.RegisterService(&Transaction_ServiceDesc, srv)
+func RegisterBlockchainServer(s grpc.ServiceRegistrar, srv BlockchainServer) {
+	s.RegisterService(&Blockchain_ServiceDesc, srv)
 }
 
-func _Transaction_CreateTx_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _Blockchain_CreateTransaction_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(TxPayload)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(TransactionServer).CreateTx(ctx, in)
+		return srv.(BlockchainServer).CreateTransaction(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/proto.Transaction/CreateTx",
+		FullMethod: "/proto.Blockchain/CreateTransaction",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(TransactionServer).CreateTx(ctx, req.(*TxPayload))
+		return srv.(BlockchainServer).CreateTransaction(ctx, req.(*TxPayload))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _Transaction_GetTx_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(TxParams)
+func _Blockchain_GetTransactions_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(QueryParams)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(TransactionServer).GetTx(ctx, in)
+		return srv.(BlockchainServer).GetTransactions(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/proto.Transaction/GetTx",
+		FullMethod: "/proto.Blockchain/GetTransactions",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(TransactionServer).GetTx(ctx, req.(*TxParams))
+		return srv.(BlockchainServer).GetTransactions(ctx, req.(*QueryParams))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-// Transaction_ServiceDesc is the grpc.ServiceDesc for Transaction service.
-// It's only intended for direct use with grpc.RegisterService,
-// and not to be introspected or modified (even as a copy)
-var Transaction_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "proto.Transaction",
-	HandlerType: (*TransactionServer)(nil),
-	Methods: []grpc.MethodDesc{
-		{
-			MethodName: "CreateTx",
-			Handler:    _Transaction_CreateTx_Handler,
-		},
-		{
-			MethodName: "GetTx",
-			Handler:    _Transaction_GetTx_Handler,
-		},
-	},
-	Streams:  []grpc.StreamDesc{},
-	Metadata: "proto/blockchain.proto",
-}
-
-// BlockClient is the client API for Block service.
-//
-// For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
-type BlockClient interface {
-	GetBlock(ctx context.Context, in *BlkParams, opts ...grpc.CallOption) (*BlkList, error)
-}
-
-type blockClient struct {
-	cc grpc.ClientConnInterface
-}
-
-func NewBlockClient(cc grpc.ClientConnInterface) BlockClient {
-	return &blockClient{cc}
-}
-
-func (c *blockClient) GetBlock(ctx context.Context, in *BlkParams, opts ...grpc.CallOption) (*BlkList, error) {
-	out := new(BlkList)
-	err := c.cc.Invoke(ctx, "/proto.Block/GetBlock", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-// BlockServer is the server API for Block service.
-// All implementations must embed UnimplementedBlockServer
-// for forward compatibility
-type BlockServer interface {
-	GetBlock(context.Context, *BlkParams) (*BlkList, error)
-	mustEmbedUnimplementedBlockServer()
-}
-
-// UnimplementedBlockServer must be embedded to have forward compatible implementations.
-type UnimplementedBlockServer struct {
-}
-
-func (UnimplementedBlockServer) GetBlock(context.Context, *BlkParams) (*BlkList, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetBlock not implemented")
-}
-func (UnimplementedBlockServer) mustEmbedUnimplementedBlockServer() {}
-
-// UnsafeBlockServer may be embedded to opt out of forward compatibility for this service.
-// Use of this interface is not recommended, as added methods to BlockServer will
-// result in compilation errors.
-type UnsafeBlockServer interface {
-	mustEmbedUnimplementedBlockServer()
-}
-
-func RegisterBlockServer(s grpc.ServiceRegistrar, srv BlockServer) {
-	s.RegisterService(&Block_ServiceDesc, srv)
-}
-
-func _Block_GetBlock_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(BlkParams)
+func _Blockchain_GetBlock_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(QueryParams)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(BlockServer).GetBlock(ctx, in)
+		return srv.(BlockchainServer).GetBlock(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/proto.Block/GetBlock",
+		FullMethod: "/proto.Blockchain/GetBlock",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(BlockServer).GetBlock(ctx, req.(*BlkParams))
+		return srv.(BlockchainServer).GetBlock(ctx, req.(*QueryParams))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-// Block_ServiceDesc is the grpc.ServiceDesc for Block service.
+// Blockchain_ServiceDesc is the grpc.ServiceDesc for Blockchain service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
-var Block_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "proto.Block",
-	HandlerType: (*BlockServer)(nil),
+var Blockchain_ServiceDesc = grpc.ServiceDesc{
+	ServiceName: "proto.Blockchain",
+	HandlerType: (*BlockchainServer)(nil),
 	Methods: []grpc.MethodDesc{
+		{
+			MethodName: "CreateTransaction",
+			Handler:    _Blockchain_CreateTransaction_Handler,
+		},
+		{
+			MethodName: "GetTransactions",
+			Handler:    _Blockchain_GetTransactions_Handler,
+		},
 		{
 			MethodName: "GetBlock",
-			Handler:    _Block_GetBlock_Handler,
+			Handler:    _Blockchain_GetBlock_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

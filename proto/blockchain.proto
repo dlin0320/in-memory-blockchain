@@ -4,13 +4,16 @@ option go_package = "/in_memory_blockchain";
 
 package proto;
 
-service Transaction {
-    rpc CreateTx (TxPayload) returns (Tx) {}
-    rpc GetTx (TxParams) returns (TxList) {}
+service Blockchain {
+    rpc CreateTransaction (TxPayload) returns (Tx) {}
+    rpc GetTransactions (QueryParams) returns (TxList) {}
+    rpc GetBlock (QueryParams) returns (BlkList) {}
 }
 
-service Block {
-    rpc GetBlock (BlkParams) returns (BlkList) {}
+message QueryParams {
+    optional string blk_hash = 1;
+    optional string tx_hash = 2;
+    optional int32 range = 3;
 }
 
 message TxPayload {
@@ -26,12 +29,8 @@ message Tx {
     float value = 4;
 }
 
-message TxParams {
-
-}
-
 message TxList {
-    repeated Tx list = 1;
+    repeated Tx transactions = 1;
 }
 
 message Header {
@@ -43,13 +42,9 @@ message Header {
 
 message Blk {
     Header header = 1;
-    repeated Tx tx_list = 2;
-}
-
-message BlkParams {
-
+    map<string, Tx> transactions =2;
 }
 
 message BlkList {
-    repeated Blk list = 1;
+    repeated Blk blocks = 1;
 }

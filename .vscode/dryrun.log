@@ -1,0 +1,6 @@
+make --dry-run --always-make --keep-going --print-directory
+make: Entering directory `/Users/dustinlin/work application/maicoin/in-memory-blockchain'
+go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.28
+go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.2
+make: Leaving directory `/Users/dustinlin/work application/maicoin/in-memory-blockchain'
+ 
