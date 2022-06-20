@@ -42,7 +42,7 @@ message Header {
 
 message Blk {
     Header header = 1;
-    map<string, Tx> transactions =2;
+    TxList tx_list =2;
 }
 
 message BlkList {

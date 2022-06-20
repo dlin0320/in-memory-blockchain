@@ -19,9 +19,16 @@ func newTx(p *pb.TxPayload) *pb.Tx {
 
 func findInBlock(b *pb.Blk, h string) *pb.Tx {
 	hashes := b.GetHeader().GetTxHashes()
+	var transactions []*pb.Tx
 	for _, hash := range hashes {
 		if string(hash[:]) == h {
-			tx := b.GetTransactions()[string(hash[:])]
+			transactions = b.GetTxList().GetTransactions()
+			break
+		}
+	}
+	for _, tx := range transactions {
+		tx_hash := tx.GetHash()
+		if string(tx_hash[:]) == h {
 			return tx
 		}
 	}
@@ -56,7 +63,9 @@ func (s *BlockchainServer) CreateTransaction(ctx context.Context, in *pb.TxPaylo
 }
 
 func (s *BlockchainServer) GetBlock(ctx context.Context, in *pb.QueryParams) (*pb.BlkList, error) {
+	log.Printf("getting latest block")
 	blk_list := pb.BlkList{Blocks: []*pb.Blk{s.latest}}
+	log.Printf("latest block is: %s", &blk_list)
 
 	return &blk_list, nil
 }
@@ -66,17 +75,15 @@ func (s *BlockchainServer) GetTransactions(ctx context.Context, in *pb.QueryPara
 	tx_hash := in.GetTxHash()
 
 	if tx_hash == "" {
-		transactions := s.latest.GetTransactions()
-		for _, tx := range transactions {
-			tx_list.Transactions = append(tx_list.Transactions, tx)
-		}
+		transactions := s.latest.GetTxList().GetTransactions()
+		tx_list.Transactions = transactions
 	} else {
 		starting_block := in.GetBlkHash()
 		if starting_block == "" {
 			starting_block = string(s.latest.GetHeader().GetHash()[:])
 		}
 		search_range := int(in.GetRange())
-		if search_range == 0 {
+		if search_range == 0 || search_range > 10 {
 			search_range = 3
 		}
 

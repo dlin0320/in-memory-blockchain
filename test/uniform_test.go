@@ -2,6 +2,7 @@ package test
 
 import (
 	"context"
+	"log"
 
 	"sort"
 	"testing"
@@ -16,17 +17,17 @@ import (
 )
 
 const (
-	Min           = 0
-	Max           = 20
-	TotalRequests = 10
+	Min             = 0
+	Max             = 20
+	UniformRequests = 20
 )
 
-func uniform(c *client.BlockchainClient, ctx context.Context) []*common.Task {
+func uniformTasks(c *client.BlockchainClient, ctx context.Context) []*common.Task {
 	seed := time.Now().UnixNano()
 	src := rand.NewSource(uint64(seed))
 	u := distuv.Uniform{Min: Min, Max: Max, Src: src}
 	var task_list []*common.Task
-	for i := 0; i < TotalRequests; i++ {
+	for i := 0; i < UniformRequests; i++ {
 		n := u.Rand()
 		task := common.NewTask(n, func() {
 			c.CreateTransaction(ctx, client.GenPayload())
@@ -41,16 +42,10 @@ func uniform(c *client.BlockchainClient, ctx context.Context) []*common.Task {
 }
 
 func TestUniform(t *testing.T) {
-
-	s := common.NewScheduler()
-	client, conn := client.Dial()
-	defer conn.Close()
-	ctx, cancel := context.WithTimeout(context.Background(), Max*time.Second)
-	defer cancel()
-
-	tasks := uniform(client, ctx)
+	log.Printf("running %v", t.Name())
+	tasks := uniformTasks(bc, ctx)
 	for _, t := range tasks {
-		s.Schedule(t)
+		scheduler.Schedule(t)
 	}
-	s.Wait()
+	scheduler.Wait()
 }

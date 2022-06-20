@@ -13,6 +13,8 @@ import (
 	"google.golang.org/grpc"
 )
 
+var server *BlockchainServer
+
 type BlockchainServer struct {
 	pb.UnimplementedBlockchainServer
 	tx_queue        goconcurrentqueue.FIFO
@@ -25,18 +27,21 @@ func newBlockchainServer() *BlockchainServer {
 	return &BlockchainServer{}
 }
 
-func Serve() *BlockchainServer {
+func Serve() {
 	lis, err := net.Listen("tcp", common.ServerPort)
 	if err != nil {
 		log.Fatalf("Failed to listen: %v", err)
 	}
 	grpcServer := grpc.NewServer()
-	txServer := newBlockchainServer()
-	pb.RegisterBlockchainServer(grpcServer, txServer)
+	server = newBlockchainServer()
+	pb.RegisterBlockchainServer(grpcServer, server)
 	fmt.Printf("server listening at %v\n", lis.Addr())
 	if err := grpcServer.Serve(lis); err != nil {
 		log.Fatalf("Failed to serve: %v", err)
 	}
+}
 
-	return txServer
+func Mine() {
+	fmt.Println("start mining...")
+	server.mine()
 }

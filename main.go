@@ -5,6 +5,7 @@ import (
 )
 
 func main() {
-	s := server.Serve()
-	s.Mine()
+	server.Serve()
+	server.Mine()
+
 }

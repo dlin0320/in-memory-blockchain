@@ -11,7 +11,6 @@ import (
 const (
 	HashLength    = 32
 	AddressLength = 20
-	BlockTime     = 10
 	ServerPort    = ":9000"
 )
 
@@ -40,8 +39,6 @@ func RandomHash(len int) string {
 	if _, err := rand.Read(data); err != nil {
 		log.Printf("error %v", err)
 	}
-	str := fmt.Sprintf("%x", data)
-	log.Printf("hash is %v\n", str)
 
 	return fmt.Sprintf("%x", data)
 }
