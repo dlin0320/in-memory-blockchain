@@ -3,6 +3,8 @@ package test
 import (
 	"context"
 	"log"
+	"math"
+	"math/rand"
 	"os"
 	"testing"
 
@@ -19,16 +21,33 @@ const (
 var bc *client.BlockchainClient
 var conn *grpc.ClientConn
 var ctx context.Context
+var cancel context.CancelFunc
 var scheduler common.Scheduler
+var addresses []string
 
 func setup() {
 	bc, conn = client.Dial()
-	ctx = context.Background()
+	ctx, cancel = context.WithCancel(context.Background())
 	scheduler = common.NewScheduler(false, true)
+	genAddresses()
 }
 
 func teardown() {
 	conn.Close()
+	cancel()
+}
+
+func genAddresses() {
+	for i := 0; i < PoissonRequests+UniformRequests+HappyRequests; i++ {
+		addresses = append(addresses, common.RandomHash(common.AddressLength))
+	}
+}
+
+func genPayload() *pb.TxPayload {
+	from := addresses[rand.Intn(len(addresses))]
+	to := addresses[rand.Intn(len(addresses))]
+	value := math.Round(rand.Float64() * 100)
+	return &pb.TxPayload{From: from, To: to, Value: float32(value)}
 }
 
 func getBlock() {
@@ -45,7 +64,7 @@ func happyTasks(c *client.BlockchainClient, ctx context.Context) []*common.Task 
 	var task_list []*common.Task
 	for i := 0; i < HappyRequests; i++ {
 		t := common.NewTask(float64(i), func() {
-			c.CreateTransaction(ctx, client.GenPayload())
+			c.CreateTransaction(ctx, genPayload())
 		})
 		task_list = append(task_list, t)
 	}

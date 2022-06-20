@@ -28,10 +28,11 @@ func GetHash(v any) Hash {
 	return hash
 }
 
-func ToHash(b []byte) Hash {
-	var hash Hash
-	copy(hash[:], b[:32])
-	return hash
+func StringToAddress(s string) Address {
+	var addr Address
+	b := []byte(s)
+	copy(addr[:], b[:AddressLength])
+	return addr
 }
 
 func RandomHash(len int) string {

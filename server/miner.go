@@ -12,6 +12,13 @@ const (
 	BlockTime = 10
 )
 
+func (s *BlockchainServer) updateAccountBalance(transactions []*pb.Tx) {
+	for _, tx := range transactions {
+		s.address_balance.final[common.StringToAddress(tx.GetFrom())] -= tx.GetValue()
+		s.address_balance.final[common.StringToAddress(tx.GetTo())] += tx.GetValue()
+	}
+}
+
 func (s *BlockchainServer) getTransactions() ([]*pb.Tx, error) {
 	len := s.tx_queue.GetLen()
 	tx_list := []*pb.Tx{}
@@ -21,10 +28,8 @@ func (s *BlockchainServer) getTransactions() ([]*pb.Tx, error) {
 			fmt.Println(err)
 			return tx_list, err
 		}
-		tx, ok := v.(*pb.Tx)
-		if ok {
-			tx_list = append(tx_list, tx)
-		}
+		tx, _ := v.(*pb.Tx)
+		tx_list = append(tx_list, tx)
 	}
 	return tx_list, nil
 }
@@ -32,9 +37,12 @@ func (s *BlockchainServer) getTransactions() ([]*pb.Tx, error) {
 func (s *BlockchainServer) mine() {
 	index := 0
 	scheduler := common.NewScheduler(true, false)
+
 	task := common.NewTask(BlockTime, func() {
 		log.Printf("mining block number %v", index)
 		index++
+
+		// preparing data for the block
 		transactions, err := s.getTransactions()
 		if err != nil {
 			log.Fatalf("failed to get transactions: %v", err)
@@ -50,14 +58,22 @@ func (s *BlockchainServer) mine() {
 		} else {
 			header = pb.Header{ParentHash: s.latest.Header.Hash, Height: int32(len(transactions)), TxHashes: tx_hashes}
 		}
+
+		// generating the block's hash
 		block := pb.Blk{TxList: &tx_list, Header: &header}
 		hash := common.GetHash(&block)
 		block.Header.Hash = hash[:]
+		log.Printf("new block created: %x", block.Header.Hash)
 
+		// updating latest block and adding block to chain
 		s.latest = &block
 		s.blocks[string(block.Header.Hash)] = &block
+
+		// update balances after block is added
+		s.updateAccountBalance(transactions)
 		log.Printf("new block mined: %x", block.Header.Hash)
 	})
+
 	scheduler.Schedule(task)
 	scheduler.Wait()
 }

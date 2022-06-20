@@ -1,1 +1,2 @@
 common/*_test.go
+server/*_test.go

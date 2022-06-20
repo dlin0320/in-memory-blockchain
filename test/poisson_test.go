@@ -14,8 +14,8 @@ import (
 )
 
 const (
-	Lambda          = 50
-	PoissonRequests = 100
+	Lambda          float64 = 50
+	PoissonRequests int     = 100
 )
 
 func poissonTasks(c *client.BlockchainClient, ctx context.Context) []*common.Task {
@@ -26,7 +26,7 @@ func poissonTasks(c *client.BlockchainClient, ctx context.Context) []*common.Tas
 	for i := 0; i < PoissonRequests; i++ {
 		n := p.Rand()
 		task := common.NewTask(n, func() {
-			c.CreateTransaction(ctx, client.GenPayload())
+			c.CreateTransaction(ctx, genPayload())
 		})
 		task_list = append(task_list, task)
 	}

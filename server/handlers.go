@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"fmt"
 	"log"
 
 	"github.com/dlin0320/in-memory-blockchain/common"
@@ -9,7 +10,20 @@ import (
 )
 
 func (s *BlockchainServer) checkAddress(addr string) {
-	s.address_balance.LoadOrStore(addr, 100)
+	_, exists := s.address_balance.current.LoadOrStore(addr, float32(100))
+	if !exists {
+		log.Printf("observed new account: %v", addr)
+	}
+}
+
+func (s *BlockchainServer) checkTx(in *pb.TxPayload) error {
+	s.checkAddress(in.GetFrom())
+	s.checkAddress(in.GetTo())
+	sender_balance, found := s.address_balance.current.Load(in.GetFrom())
+	if !found || sender_balance.(float32) < in.GetValue() || in.GetFrom() == in.GetTo() {
+		return fmt.Errorf("invalid transaction: %v", in)
+	}
+	return nil
 }
 
 func newTx(p *pb.TxPayload) *pb.Tx {
@@ -53,13 +67,19 @@ func (s *BlockchainServer) findTx(h string, starting_block string, search_range 
 func (s *BlockchainServer) CreateTransaction(ctx context.Context, in *pb.TxPayload) (*pb.Tx, error) {
 	log.Printf("received new tx: %v", in.String())
 
-	go s.checkAddress(in.GetFrom())
-	go s.checkAddress(in.GetTo())
-	newTx := newTx(in)
-	s.tx_queue.Enqueue(newTx)
+	var err error
+	err = s.checkTx(in)
+	if err != nil {
+		return nil, err
+	}
+	tx := newTx(in)
+	err = s.tx_queue.Enqueue(tx)
+	if err != nil {
+		return nil, err
+	}
 
-	log.Printf("new tx created: %x", newTx.Hash)
-	return newTx, nil
+	log.Printf("new tx created: %x", tx.GetHash())
+	return tx, nil
 }
 
 func (s *BlockchainServer) GetBlock(ctx context.Context, in *pb.QueryParams) (*pb.BlkList, error) {

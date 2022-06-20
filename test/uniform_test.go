@@ -30,7 +30,7 @@ func uniformTasks(c *client.BlockchainClient, ctx context.Context) []*common.Tas
 	for i := 0; i < UniformRequests; i++ {
 		n := u.Rand()
 		task := common.NewTask(n, func() {
-			c.CreateTransaction(ctx, client.GenPayload())
+			c.CreateTransaction(ctx, genPayload())
 		})
 		task_list = append(task_list, task)
 	}

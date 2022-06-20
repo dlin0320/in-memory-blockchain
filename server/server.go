@@ -15,16 +15,23 @@ import (
 
 var server *BlockchainServer
 
+var bcChannel = make(chan BlockchainServer)
+
+type AddressWithBalance struct {
+	current sync.Map
+	final   map[common.Address]float32
+}
+
 type BlockchainServer struct {
 	pb.UnimplementedBlockchainServer
 	tx_queue        goconcurrentqueue.FIFO
-	address_balance sync.Map
+	address_balance *AddressWithBalance
 	latest          *pb.Blk
 	blocks          map[string]*pb.Blk
 }
 
 func newBlockchainServer() *BlockchainServer {
-	return &BlockchainServer{}
+	return &BlockchainServer{blocks: map[string]*pb.Blk{}, address_balance: &AddressWithBalance{}}
 }
 
 func Serve() {
@@ -34,6 +41,7 @@ func Serve() {
 	}
 	grpcServer := grpc.NewServer()
 	server = newBlockchainServer()
+	bcChannel <- *server
 	pb.RegisterBlockchainServer(grpcServer, server)
 	fmt.Printf("server listening at %v\n", lis.Addr())
 	if err := grpcServer.Serve(lis); err != nil {
@@ -42,6 +50,7 @@ func Serve() {
 }
 
 func Mine() {
+	<-bcChannel
 	fmt.Println("start mining...")
 	server.mine()
 }
