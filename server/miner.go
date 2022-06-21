@@ -10,28 +10,42 @@ import (
 
 const (
 	BlockTime = 10
+	BlockSize = 500
 )
 
 func (s *BlockchainServer) updateAccountBalance(transactions []*pb.Tx) {
 	for _, tx := range transactions {
-		s.address_balance.final[common.StringToAddress(tx.GetFrom())] -= tx.GetValue()
-		s.address_balance.final[common.StringToAddress(tx.GetTo())] += tx.GetValue()
+		val := tx.GetValue()
+		sender, _ := s.balance.Load(tx.GetFrom())
+		receiver, _ := s.balance.Load(tx.GetTo())
+		sender_balance := sender.(Balance)
+		receiver_balance := receiver.(Balance)
+		sender_balance.final -= val
+		sender_balance.temp += val
+		receiver_balance.final += val
+		receiver_balance.temp -= val
+		s.balance.Store(tx.GetFrom(), sender_balance)
+		s.balance.Store(tx.GetTo(), receiver_balance)
 	}
 }
 
 func (s *BlockchainServer) getTransactions() ([]*pb.Tx, error) {
 	len := s.tx_queue.GetLen()
-	tx_list := []*pb.Tx{}
+	if len > BlockSize {
+		len = BlockSize
+	}
+	transactions := []*pb.Tx{}
 	for i := 0; i < len; i++ {
 		v, err := s.tx_queue.Dequeue()
 		if err != nil {
 			fmt.Println(err)
-			return tx_list, err
+			return nil, err
 		}
 		tx, _ := v.(*pb.Tx)
-		tx_list = append(tx_list, tx)
+		transactions = append(transactions, tx)
 	}
-	return tx_list, nil
+
+	return transactions, nil
 }
 
 func (s *BlockchainServer) mine() {
@@ -48,7 +62,7 @@ func (s *BlockchainServer) mine() {
 			log.Fatalf("failed to get transactions: %v", err)
 		}
 		tx_list := pb.TxList{Transactions: transactions}
-		tx_hashes := [][]byte{}
+		tx_hashes := []string{}
 		for _, tx := range transactions {
 			tx_hashes = append(tx_hashes, tx.Hash)
 		}
@@ -61,17 +75,16 @@ func (s *BlockchainServer) mine() {
 
 		// generating the block's hash
 		block := pb.Blk{TxList: &tx_list, Header: &header}
-		hash := common.GetHash(&block)
-		block.Header.Hash = hash[:]
-		log.Printf("new block created: %x", block.Header.Hash)
+		block.Header.Hash = common.GetHash(&block)
+		log.Printf("new block created: %v", block.Header.Hash)
 
 		// updating latest block and adding block to chain
 		s.latest = &block
-		s.blocks[string(block.Header.Hash)] = &block
+		s.blocks[block.Header.Hash] = &block
 
 		// update balances after block is added
 		s.updateAccountBalance(transactions)
-		log.Printf("new block mined: %x", block.Header.Hash)
+		log.Printf("new block mined: %v", block.Header.Hash)
 	})
 
 	scheduler.Schedule(task)

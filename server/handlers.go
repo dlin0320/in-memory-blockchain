@@ -10,17 +10,19 @@ import (
 )
 
 func (s *BlockchainServer) checkAddress(addr string) {
-	_, exists := s.address_balance.current.LoadOrStore(addr, float32(100))
-	if !exists {
+	balance, _ := s.balance.Load(addr)
+	if balance == nil {
 		log.Printf("observed new account: %v", addr)
+		s.balance.Store(addr, Balance{final: 0, temp: 100})
 	}
 }
 
 func (s *BlockchainServer) checkTx(in *pb.TxPayload) error {
 	s.checkAddress(in.GetFrom())
 	s.checkAddress(in.GetTo())
-	sender_balance, found := s.address_balance.current.Load(in.GetFrom())
-	if !found || sender_balance.(float32) < in.GetValue() || in.GetFrom() == in.GetTo() {
+	sender, found := s.balance.Load(in.GetFrom())
+	balance := sender.(Balance)
+	if !found || balance.final+balance.temp < in.GetValue() || in.GetFrom() == in.GetTo() {
 		return fmt.Errorf("invalid transaction: %v", in)
 	}
 	return nil
@@ -28,21 +30,21 @@ func (s *BlockchainServer) checkTx(in *pb.TxPayload) error {
 
 func newTx(p *pb.TxPayload) *pb.Tx {
 	hash := common.GetHash(p)
-	return &pb.Tx{Hash: hash[:], From: p.GetFrom(), To: p.GetTo(), Value: p.GetValue()}
+	return &pb.Tx{Hash: hash, From: p.GetFrom(), To: p.GetTo(), Value: p.GetValue()}
 }
 
 func findInBlock(b *pb.Blk, h string) *pb.Tx {
 	hashes := b.GetHeader().GetTxHashes()
 	var transactions []*pb.Tx
 	for _, hash := range hashes {
-		if string(hash[:]) == h {
+		if hash == h {
 			transactions = b.GetTxList().GetTransactions()
 			break
 		}
 	}
 	for _, tx := range transactions {
 		tx_hash := tx.GetHash()
-		if string(tx_hash[:]) == h {
+		if tx_hash == h {
 			return tx
 		}
 	}
@@ -58,15 +60,16 @@ func (s *BlockchainServer) findTx(h string, starting_block string, search_range 
 			return tx
 		}
 		parent := curr_block.GetHeader().GetParentHash()
-		curr_block = s.blocks[string(parent[:])]
+		curr_block = s.blocks[parent]
 	}
 
 	return nil
 }
 
 func (s *BlockchainServer) CreateTransaction(ctx context.Context, in *pb.TxPayload) (*pb.Tx, error) {
-	log.Printf("received new tx: %v", in.String())
+	log.Printf("received new tx: %v", in)
 
+	// create new transaction and push to mempool
 	var err error
 	err = s.checkTx(in)
 	if err != nil {
@@ -78,7 +81,15 @@ func (s *BlockchainServer) CreateTransaction(ctx context.Context, in *pb.TxPaylo
 		return nil, err
 	}
 
-	log.Printf("new tx created: %x", tx.GetHash())
+	// update temp balance
+	sender, _ := s.balance.Load(tx.GetFrom())
+	receiver, _ := s.balance.Load(tx.GetTo())
+	sender_balance := sender.(Balance)
+	receiver_balance := receiver.(Balance)
+	sender_balance.temp -= tx.Value
+	receiver_balance.temp += tx.Value
+
+	log.Printf("new tx created: %v", tx)
 	return tx, nil
 }
 
@@ -100,7 +111,7 @@ func (s *BlockchainServer) GetTransactions(ctx context.Context, in *pb.QueryPara
 	} else {
 		starting_block := in.GetBlkHash()
 		if starting_block == "" {
-			starting_block = string(s.latest.GetHeader().GetHash()[:])
+			starting_block = s.latest.GetHeader().GetHash()
 		}
 		search_range := int(in.GetRange())
 		if search_range == 0 || search_range > 10 {

@@ -17,21 +17,21 @@ var server *BlockchainServer
 
 var bcChannel = make(chan BlockchainServer)
 
-type AddressWithBalance struct {
-	current sync.Map
-	final   map[common.Address]float32
+type Balance struct {
+	final float64
+	temp  float64
 }
 
 type BlockchainServer struct {
 	pb.UnimplementedBlockchainServer
-	tx_queue        goconcurrentqueue.FIFO
-	address_balance *AddressWithBalance
-	latest          *pb.Blk
-	blocks          map[string]*pb.Blk
+	tx_queue goconcurrentqueue.FIFO
+	balance  sync.Map
+	latest   *pb.Blk
+	blocks   map[string]*pb.Blk
 }
 
 func newBlockchainServer() *BlockchainServer {
-	return &BlockchainServer{blocks: map[string]*pb.Blk{}, address_balance: &AddressWithBalance{}}
+	return &BlockchainServer{blocks: map[string]*pb.Blk{}}
 }
 
 func Serve() {

@@ -19,14 +19,14 @@ message QueryParams {
 message TxPayload {
     string from = 1;
     string to = 2;
-    float value = 3;
+    double value = 3;
 }
 
 message Tx {
-    bytes hash = 1;
+    string hash = 1;
     string from = 2;
     string to = 3;
-    float value = 4;
+    double value = 4;
 }
 
 message TxList {
@@ -34,10 +34,10 @@ message TxList {
 }
 
 message Header {
-    bytes hash = 1;
-    bytes parent_hash = 2;
+    string hash = 1;
+    string parent_hash = 2;
     int32 height = 3;
-    repeated bytes tx_hashes = 4;
+    repeated string tx_hashes = 4;
 }
 
 message Blk {

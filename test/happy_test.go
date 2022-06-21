@@ -47,7 +47,7 @@ func genPayload() *pb.TxPayload {
 	from := addresses[rand.Intn(len(addresses))]
 	to := addresses[rand.Intn(len(addresses))]
 	value := math.Round(rand.Float64() * 100)
-	return &pb.TxPayload{From: from, To: to, Value: float32(value)}
+	return &pb.TxPayload{From: from, To: to, Value: float64(value)}
 }
 
 func getBlock() {

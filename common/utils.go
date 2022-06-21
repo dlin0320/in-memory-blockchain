@@ -14,25 +14,14 @@ const (
 	ServerPort    = ":9000"
 )
 
-type Hash [HashLength]byte
-
-type Address [AddressLength]byte
-
-func GetHash(v any) Hash {
+func GetHash(v any) string {
 	bytes, err := json.Marshal(v)
 	if err != nil {
 		log.Fatalf("byte conversion failed: %v", err)
 	}
 	hash := sha256.Sum256(bytes)
 
-	return hash
-}
-
-func StringToAddress(s string) Address {
-	var addr Address
-	b := []byte(s)
-	copy(addr[:], b[:AddressLength])
-	return addr
+	return fmt.Sprintf("%x", hash)
 }
 
 func RandomHash(len int) string {
