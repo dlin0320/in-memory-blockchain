@@ -25,6 +25,7 @@ type BlockchainClient interface {
 	CreateTransaction(ctx context.Context, in *TxPayload, opts ...grpc.CallOption) (*Tx, error)
 	GetTransactions(ctx context.Context, in *QueryParams, opts ...grpc.CallOption) (*TxList, error)
 	GetBlock(ctx context.Context, in *QueryParams, opts ...grpc.CallOption) (*BlkList, error)
+	GetBalance(ctx context.Context, in *QueryParams, opts ...grpc.CallOption) (*Balance, error)
 }
 
 type blockchainClient struct {
@@ -62,6 +63,15 @@ func (c *blockchainClient) GetBlock(ctx context.Context, in *QueryParams, opts .
 	return out, nil
 }
 
+func (c *blockchainClient) GetBalance(ctx context.Context, in *QueryParams, opts ...grpc.CallOption) (*Balance, error) {
+	out := new(Balance)
+	err := c.cc.Invoke(ctx, "/proto.Blockchain/GetBalance", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // BlockchainServer is the server API for Blockchain service.
 // All implementations must embed UnimplementedBlockchainServer
 // for forward compatibility
@@ -69,6 +79,7 @@ type BlockchainServer interface {
 	CreateTransaction(context.Context, *TxPayload) (*Tx, error)
 	GetTransactions(context.Context, *QueryParams) (*TxList, error)
 	GetBlock(context.Context, *QueryParams) (*BlkList, error)
+	GetBalance(context.Context, *QueryParams) (*Balance, error)
 	mustEmbedUnimplementedBlockchainServer()
 }
 
@@ -84,6 +95,9 @@ func (UnimplementedBlockchainServer) GetTransactions(context.Context, *QueryPara
 }
 func (UnimplementedBlockchainServer) GetBlock(context.Context, *QueryParams) (*BlkList, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetBlock not implemented")
+}
+func (UnimplementedBlockchainServer) GetBalance(context.Context, *QueryParams) (*Balance, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetBalance not implemented")
 }
 func (UnimplementedBlockchainServer) mustEmbedUnimplementedBlockchainServer() {}
 
@@ -152,6 +166,24 @@ func _Blockchain_GetBlock_Handler(srv interface{}, ctx context.Context, dec func
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Blockchain_GetBalance_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(QueryParams)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(BlockchainServer).GetBalance(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/proto.Blockchain/GetBalance",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(BlockchainServer).GetBalance(ctx, req.(*QueryParams))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // Blockchain_ServiceDesc is the grpc.ServiceDesc for Blockchain service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -170,6 +202,10 @@ var Blockchain_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetBlock",
 			Handler:    _Blockchain_GetBlock_Handler,
+		},
+		{
+			MethodName: "GetBalance",
+			Handler:    _Blockchain_GetBalance_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

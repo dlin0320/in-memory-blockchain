@@ -1,7 +1,6 @@
 package server
 
 import (
-	"fmt"
 	"log"
 	"net"
 	"sync"
@@ -43,7 +42,7 @@ func Serve() {
 	server = newBlockchainServer()
 	bcChannel <- *server
 	pb.RegisterBlockchainServer(grpcServer, server)
-	fmt.Printf("server listening at %v\n", lis.Addr())
+	log.Printf("server listening at %v\n", lis.Addr())
 	if err := grpcServer.Serve(lis); err != nil {
 		log.Fatalf("Failed to serve: %v", err)
 	}
@@ -51,6 +50,6 @@ func Serve() {
 
 func Mine() {
 	<-bcChannel
-	fmt.Println("start mining...")
-	server.mine()
+	log.Println("start mining...")
+	mine()
 }

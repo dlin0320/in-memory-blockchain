@@ -8,12 +8,19 @@ service Blockchain {
     rpc CreateTransaction (TxPayload) returns (Tx) {}
     rpc GetTransactions (QueryParams) returns (TxList) {}
     rpc GetBlock (QueryParams) returns (BlkList) {}
+    rpc GetBalance (QueryParams) returns (Balance) {}
+}
+
+message Balance {
+    string address = 1;
+    double balance = 2;
 }
 
 message QueryParams {
-    optional string blk_hash = 1;
-    optional string tx_hash = 2;
-    optional int32 range = 3;
+    string blk_hash = 1;
+    string tx_hash = 2;
+    string address =3;
+    int32 range = 4;
 }
 
 message TxPayload {

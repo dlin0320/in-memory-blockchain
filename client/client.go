@@ -10,15 +10,11 @@ import (
 	pb "github.com/dlin0320/in-memory-blockchain/proto"
 )
 
-type BlockchainClient struct {
-	pb.BlockchainClient
+func newBlockchainClient(conn *grpc.ClientConn) pb.BlockchainClient {
+	return pb.NewBlockchainClient(conn)
 }
 
-func newBlockchainClient(conn *grpc.ClientConn) *BlockchainClient {
-	return &BlockchainClient{pb.NewBlockchainClient(conn)}
-}
-
-func Dial() (*BlockchainClient, *grpc.ClientConn) {
+func Dial() (pb.BlockchainClient, *grpc.ClientConn) {
 
 	conn, err := grpc.Dial(common.ServerPort, grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithBlock())
 	if err != nil {

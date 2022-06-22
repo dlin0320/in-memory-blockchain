@@ -1,7 +1,6 @@
 package server
 
 import (
-	"fmt"
 	"log"
 
 	"github.com/dlin0320/in-memory-blockchain/common"
@@ -10,35 +9,44 @@ import (
 
 const (
 	BlockTime = 10
-	BlockSize = 500
+	BlockSize = 1000
 )
 
-func (s *BlockchainServer) updateAccountBalance(transactions []*pb.Tx) {
+func updateAccountBalance(transactions []*pb.Tx) {
 	for _, tx := range transactions {
 		val := tx.GetValue()
-		sender, _ := s.balance.Load(tx.GetFrom())
-		receiver, _ := s.balance.Load(tx.GetTo())
-		sender_balance := sender.(Balance)
-		receiver_balance := receiver.(Balance)
+		sender_balance, _ := getBalance(tx.GetFrom())
+		receiver_balance, _ := getBalance(tx.GetTo())
 		sender_balance.final -= val
 		sender_balance.temp += val
 		receiver_balance.final += val
 		receiver_balance.temp -= val
-		s.balance.Store(tx.GetFrom(), sender_balance)
-		s.balance.Store(tx.GetTo(), receiver_balance)
+		server.balance.Store(tx.GetFrom(), sender_balance)
+		server.balance.Store(tx.GetTo(), receiver_balance)
 	}
 }
 
-func (s *BlockchainServer) getTransactions() ([]*pb.Tx, error) {
-	len := s.tx_queue.GetLen()
+func updateBalanceTemp(transactions []*pb.Tx) {
+	for _, tx := range transactions {
+		val := tx.GetValue()
+		sender_balance, _ := getBalance(tx.GetFrom())
+		receiver_balance, _ := getBalance(tx.GetTo())
+		sender_balance.temp += val
+		receiver_balance.temp -= val
+		server.balance.Store(tx.GetFrom(), sender_balance)
+		server.balance.Store(tx.GetTo(), receiver_balance)
+	}
+}
+
+func getTransactions() ([]*pb.Tx, error) {
+	len := server.tx_queue.GetLen()
 	if len > BlockSize {
 		len = BlockSize
 	}
 	transactions := []*pb.Tx{}
 	for i := 0; i < len; i++ {
-		v, err := s.tx_queue.Dequeue()
+		v, err := server.tx_queue.Dequeue()
 		if err != nil {
-			fmt.Println(err)
 			return nil, err
 		}
 		tx, _ := v.(*pb.Tx)
@@ -48,7 +56,31 @@ func (s *BlockchainServer) getTransactions() ([]*pb.Tx, error) {
 	return transactions, nil
 }
 
-func (s *BlockchainServer) mine() {
+func checkTransactions(transactions []*pb.Tx) ([]*pb.Tx, []*pb.Tx) {
+	sender_balances := map[string]float64{}
+	validTransactions := []*pb.Tx{}
+	invalidTransactions := []*pb.Tx{}
+	for _, tx := range transactions {
+		sender := tx.GetFrom()
+		_, found := sender_balances[sender]
+		if !found {
+			b, _ := getBalance(sender)
+			sender_balances[sender] = b.final
+		}
+
+		if sender_balances[sender]-tx.GetValue() >= 0 {
+			sender_balances[sender] -= tx.GetValue()
+			validTransactions = append(validTransactions, tx)
+		} else {
+			log.Printf("invalid transaction revoked: %v", tx)
+			invalidTransactions = append(invalidTransactions, tx)
+		}
+	}
+
+	return validTransactions, invalidTransactions
+}
+
+func mine() {
 	index := 0
 	scheduler := common.NewScheduler(true, false)
 
@@ -57,34 +89,34 @@ func (s *BlockchainServer) mine() {
 		index++
 
 		// preparing data for the block
-		transactions, err := s.getTransactions()
+		transactions, err := getTransactions()
 		if err != nil {
 			log.Fatalf("failed to get transactions: %v", err)
 		}
-		tx_list := pb.TxList{Transactions: transactions}
+		validTransactions, invalidTransactions := checkTransactions(transactions)
+		tx_list := pb.TxList{Transactions: validTransactions}
 		tx_hashes := []string{}
-		for _, tx := range transactions {
-			tx_hashes = append(tx_hashes, tx.Hash)
+		for _, tx := range validTransactions {
+			tx_hashes = append(tx_hashes, tx.GetHash())
 		}
-		var header pb.Header
-		if s.latest == nil {
-			header = pb.Header{Height: int32(len(transactions)), TxHashes: tx_hashes}
-		} else {
-			header = pb.Header{ParentHash: s.latest.Header.Hash, Height: int32(len(transactions)), TxHashes: tx_hashes}
+		header := pb.Header{Height: int32(len(validTransactions)), TxHashes: tx_hashes}
+		if server.latest != nil {
+			header.ParentHash = server.latest.GetHeader().GetHash()
 		}
 
 		// generating the block's hash
 		block := pb.Blk{TxList: &tx_list, Header: &header}
-		block.Header.Hash = common.GetHash(&block)
-		log.Printf("new block created: %v", block.Header.Hash)
+		block.GetHeader().Hash = common.GetHash(&block)
+		log.Printf("new block created: %v", &block)
 
 		// updating latest block and adding block to chain
-		s.latest = &block
-		s.blocks[block.Header.Hash] = &block
+		server.latest = &block
+		server.blocks[block.GetHeader().GetHash()] = &block
 
 		// update balances after block is added
-		s.updateAccountBalance(transactions)
-		log.Printf("new block mined: %v", block.Header.Hash)
+		updateAccountBalance(validTransactions)
+		updateBalanceTemp(invalidTransactions)
+		log.Printf("new block mined: %v", block.GetHeader().GetHash())
 	})
 
 	scheduler.Schedule(task)

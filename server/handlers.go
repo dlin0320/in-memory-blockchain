@@ -9,20 +9,20 @@ import (
 	pb "github.com/dlin0320/in-memory-blockchain/proto"
 )
 
-func (s *BlockchainServer) checkAddress(addr string) {
-	balance, _ := s.balance.Load(addr)
+func checkAddress(addr string) {
+	balance, _ := server.balance.Load(addr)
 	if balance == nil {
 		log.Printf("observed new account: %v", addr)
-		s.balance.Store(addr, Balance{final: 0, temp: 100})
+		server.balance.Store(addr, &Balance{final: 100, temp: 0})
 	}
 }
 
-func (s *BlockchainServer) checkTx(in *pb.TxPayload) error {
-	s.checkAddress(in.GetFrom())
-	s.checkAddress(in.GetTo())
-	sender, found := s.balance.Load(in.GetFrom())
-	balance := sender.(Balance)
-	if !found || balance.final+balance.temp < in.GetValue() || in.GetFrom() == in.GetTo() {
+func checkTx(in *pb.TxPayload) error {
+	checkAddress(in.GetFrom())
+	checkAddress(in.GetTo())
+	sender, _ := server.balance.Load(in.GetFrom())
+	balance := sender.(*Balance)
+	if balance.final+balance.temp < in.GetValue() || in.GetFrom() == in.GetTo() {
 		return fmt.Errorf("invalid transaction: %v", in)
 	}
 	return nil
@@ -51,8 +51,8 @@ func findInBlock(b *pb.Blk, h string) *pb.Tx {
 	return nil
 }
 
-func (s *BlockchainServer) findTx(h string, starting_block string, search_range int) *pb.Tx {
-	curr_block := s.blocks[starting_block]
+func findTx(h string, starting_block string, search_range int) *pb.Tx {
+	curr_block := server.blocks[starting_block]
 
 	for i := 0; i < search_range; i++ {
 		tx := findInBlock(curr_block, h)
@@ -60,10 +60,18 @@ func (s *BlockchainServer) findTx(h string, starting_block string, search_range 
 			return tx
 		}
 		parent := curr_block.GetHeader().GetParentHash()
-		curr_block = s.blocks[parent]
+		curr_block = server.blocks[parent]
 	}
 
 	return nil
+}
+
+func getBalance(addr string) (*Balance, error) {
+	b, _ := server.balance.Load(addr)
+	if b == nil {
+		return nil, fmt.Errorf("account not found with address: %v", addr)
+	}
+	return b.(*Balance), nil
 }
 
 func (s *BlockchainServer) CreateTransaction(ctx context.Context, in *pb.TxPayload) (*pb.Tx, error) {
@@ -71,7 +79,7 @@ func (s *BlockchainServer) CreateTransaction(ctx context.Context, in *pb.TxPaylo
 
 	// create new transaction and push to mempool
 	var err error
-	err = s.checkTx(in)
+	err = checkTx(in)
 	if err != nil {
 		return nil, err
 	}
@@ -82,23 +90,13 @@ func (s *BlockchainServer) CreateTransaction(ctx context.Context, in *pb.TxPaylo
 	}
 
 	// update temp balance
-	sender, _ := s.balance.Load(tx.GetFrom())
-	receiver, _ := s.balance.Load(tx.GetTo())
-	sender_balance := sender.(Balance)
-	receiver_balance := receiver.(Balance)
+	sender_balance, _ := getBalance(tx.GetFrom())
+	receiver_balance, _ := getBalance(tx.GetTo())
 	sender_balance.temp -= tx.Value
 	receiver_balance.temp += tx.Value
 
 	log.Printf("new tx created: %v", tx)
 	return tx, nil
-}
-
-func (s *BlockchainServer) GetBlock(ctx context.Context, in *pb.QueryParams) (*pb.BlkList, error) {
-	log.Printf("getting latest block")
-	blk_list := pb.BlkList{Blocks: []*pb.Blk{s.latest}}
-	log.Printf("latest block is: %s", &blk_list)
-
-	return &blk_list, nil
 }
 
 func (s *BlockchainServer) GetTransactions(ctx context.Context, in *pb.QueryParams) (*pb.TxList, error) {
@@ -118,8 +116,25 @@ func (s *BlockchainServer) GetTransactions(ctx context.Context, in *pb.QueryPara
 			search_range = 3
 		}
 
-		s.findTx(tx_hash, starting_block, search_range)
+		findTx(tx_hash, starting_block, search_range)
 	}
 
 	return tx_list, nil
+}
+
+func (s *BlockchainServer) GetBlock(ctx context.Context, in *pb.QueryParams) (*pb.BlkList, error) {
+	log.Printf("getting latest block")
+	blk_list := pb.BlkList{Blocks: []*pb.Blk{s.latest}}
+
+	return &blk_list, nil
+}
+
+func (s *BlockchainServer) GetBalance(ctx context.Context, in *pb.QueryParams) (*pb.Balance, error) {
+	log.Printf("getting balance for: %v", in.GetAddress())
+	b, err := getBalance(in.GetAddress())
+	if b == nil {
+		return nil, err
+	}
+	balance := pb.Balance{Address: in.GetAddress(), Balance: b.final}
+	return &balance, nil
 }
