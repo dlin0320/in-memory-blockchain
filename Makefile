@@ -9,3 +9,12 @@ protoc:
 
 main:
 	go run main.go
+
+docker:
+	docker build -t 'in-memory-blockchain' .
+	docker run -p 9000:9000 in-memory-blockchain
+
+.PHONY: test
+test:
+	go clean -testcache
+	go test ./...
